@@ -80,6 +80,8 @@ services:
     volumes:
       - ./infra/lnd/lnd.conf:/etc/lnd/lnd.conf:ro
       - regtest_lnd_data:/data/lnd
+    environment:
+      - LND_WALLET_PASSWORD=${LND_WALLET_PASSWORD:-password}
     healthcheck:
       test:
         [
