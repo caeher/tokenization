@@ -301,7 +301,6 @@ services:
         condition: service_completed_successfully
     networks:
       - platform
-
   gateway:
     build:
       context: ./services/gateway
@@ -329,11 +328,16 @@ services:
       - "80"
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.tokenization-regtest-gateway.rule=Host(`plan-b2b.cuboplus.caeher.com`)"
+      - "traefik.http.routers.tokenization-regtest-gateway.entrypoints=https"
+      - "traefik.http.routers.tokenization-regtest-gateway.tls=true"
+      - "traefik.http.routers.tokenization-regtest-gateway.service=tokenization-regtest-gateway"
       - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.scheme=http"
       - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.port=80"
     networks:
       - platform
-
+      - coolify
 volumes:
   regtest_postgres_data:
   regtest_redis_data:
