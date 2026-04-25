@@ -50,6 +50,14 @@ def test_regtest_compose_uses_infra_relative_paths():
     assert "../:/app" not in content
 
 
+def test_wallet_services_do_not_block_on_fresh_lnd_wallet_initialization():
+    regtest_content = (REPO_ROOT / "infra" / "docker-compose.regtest.yml").read_text(encoding="utf-8")
+    local_content = (REPO_ROOT / "infra" / "docker-compose.local.yml").read_text(encoding="utf-8")
+
+    assert "regtest-lnd:\n        condition: service_started" in regtest_content
+    assert "lnd:\n        condition: service_started" in local_content
+
+
 def test_regtest_environment_template_is_dedicated():
     content = (REPO_ROOT / "infra" / ".env.regtest.example").read_text(encoding="utf-8")
 

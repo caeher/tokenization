@@ -181,7 +181,7 @@ services:
       bitcoind:
         condition: service_healthy
       lnd:
-        condition: service_healthy
+        condition: service_started
       elementsd:
         condition: service_healthy
     ports:
