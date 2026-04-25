@@ -241,6 +241,7 @@ All Python services use the shared settings loader in `services/common/config.py
 
 - Dependency gating can be tuned with `BITCOIN_RPC_REQUIRED`, `LND_GRPC_REQUIRED`, and `ELEMENTS_RPC_REQUIRED`.
 - `AUTH_SERVICE_URL` defaults to `http://auth:8000` if unset; it is set explicitly in `infra/.env.local` and `infra/.env.regtest` templates.
+- `BITCOIN_RPC_URL` is optional and can be used when Bitcoin Core is behind a reverse proxy or HTTPS endpoint; when set, it overrides `BITCOIN_RPC_HOST` and `BITCOIN_RPC_PORT` for HTTP calls.
 
 ## Public beta
 

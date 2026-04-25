@@ -47,8 +47,11 @@ def _has_unique_constraint(table_name: str, constraint_name: str) -> bool:
 
 
 def _has_check_constraint(table_name: str, constraint_name: str) -> bool:
+    expected_names = {constraint_name}
+    if constraint_name.startswith(f"ck_{table_name}_"):
+        expected_names.add(f"ck_{table_name}_{constraint_name}")
     return any(
-        constraint.get("name") == constraint_name
+        constraint.get("name") in expected_names
         for constraint in _inspector().get_check_constraints(table_name)
     )
 

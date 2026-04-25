@@ -33,7 +33,7 @@ services:
     networks:
       - platform
 
-  bitcoind:
+  regtest-bitcoind:
     image: lncm/bitcoind:v28.0
     container_name: tokenization-regtest-bitcoind
     user: "0:0"
@@ -59,7 +59,7 @@ services:
     networks:
       - platform
 
-  lndd:
+  regtest-lnd:
     image: lightninglabs/lnd:v0.20.0-beta
     container_name: tokenization-regtest-lnd
     restart: unless-stopped
@@ -68,14 +68,14 @@ services:
       - --configfile=/etc/lnd/lnd.conf
       - --bitcoin.active
       - --bitcoin.regtest
-      - --bitcoin.node=bitcoind
-      - --bitcoind.rpchost=bitcoind:18443
+      - --bitcoin.node=regtest-bitcoind
+      - --bitcoind.rpchost=regtest-bitcoind:18443
       - --bitcoind.rpcuser=local_rpc
       - --bitcoind.rpcpass=local_rpc_password
-      - --bitcoind.zmqpubrawblock=tcp://bitcoind:28332
-      - --bitcoind.zmqpubrawtx=tcp://bitcoind:28333
+      - --bitcoind.zmqpubrawblock=tcp://regtest-bitcoind:28332
+      - --bitcoind.zmqpubrawtx=tcp://regtest-bitcoind:28333
     depends_on:
-      bitcoind:
+      regtest-bitcoind:
         condition: service_healthy
     volumes:
       - ./infra/lnd/lnd.conf:/etc/lnd/lnd.conf:ro
@@ -100,7 +100,7 @@ services:
     container_name: tokenization-regtest-elementsd
     restart: unless-stopped
     depends_on:
-      bitcoind:
+      regtest-bitcoind:
         condition: service_healthy
     environment:
       ELEMENTS_CONF_FILE: /etc/elements/elements.conf
@@ -181,9 +181,9 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      bitcoind:
+      regtest-bitcoind:
         condition: service_healthy
-      lnd:
+      regtest-lnd:
         condition: service_healthy
       elementsd:
         condition: service_healthy

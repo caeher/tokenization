@@ -55,7 +55,8 @@ def get_readiness_payload(settings: Settings) -> dict:
     postgres_ok, postgres_error = _check_tcp_socket(settings.postgres_host, settings.postgres_port)
     redis_ok, redis_error, redis_target = _check_redis_ping(settings.redis_url)
 
-    bitcoin_ok, bitcoin_error = _check_tcp_socket(settings.bitcoin_rpc_host, settings.bitcoin_rpc_port)
+    bitcoin_host, bitcoin_port = settings.bitcoin_rpc_socket_target
+    bitcoin_ok, bitcoin_error = _check_tcp_socket(bitcoin_host, bitcoin_port)
     elements_ok, elements_error = _check_tcp_socket(settings.elements_rpc_host, settings.elements_rpc_port)
     lnd_ok, lnd_error = _check_tcp_socket(settings.lnd_grpc_host, settings.lnd_grpc_port)
 
@@ -74,7 +75,7 @@ def get_readiness_payload(settings: Settings) -> dict:
         ),
         "bitcoin": _dependency_payload(
             ok=bitcoin_ok,
-            target=f"{settings.bitcoin_rpc_host}:{settings.bitcoin_rpc_port}",
+            target=f"{bitcoin_host}:{bitcoin_port}",
             error=bitcoin_error,
             required=settings.bitcoin_rpc_required,
         ),

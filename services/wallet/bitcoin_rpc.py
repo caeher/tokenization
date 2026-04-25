@@ -18,7 +18,7 @@ class BitcoinRPCClient:
     """Async Bitcoin Core RPC Client."""
 
     def __init__(self, settings: Settings):
-        self.url = f"http://{settings.bitcoin_rpc_host}:{settings.bitcoin_rpc_port}/"
+        self.url = settings.bitcoin_rpc_endpoint
         auth_string = f"{settings.bitcoin_rpc_user}:{settings.bitcoin_rpc_password or ''}"
         self.auth_header = "Basic " + base64.b64encode(auth_string.encode()).decode("utf-8")
         

@@ -4,6 +4,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -44,6 +45,7 @@ class Settings(BaseSettings):
 
     bitcoin_rpc_host: str
     bitcoin_rpc_port: int
+    bitcoin_rpc_url: str | None = None
     bitcoin_rpc_user: str
     bitcoin_rpc_password: str | None = None
     bitcoin_rpc_password_file: str | None = None
@@ -138,6 +140,25 @@ class Settings(BaseSettings):
         if self.lnd_grpc_required is not None:
             return self.lnd_grpc_required
         return self.env_profile not in {"local", "regtest"}
+
+    @property
+    def bitcoin_rpc_endpoint(self) -> str:
+        if self.bitcoin_rpc_url:
+            return self.bitcoin_rpc_url
+        return f"http://{self.bitcoin_rpc_host}:{self.bitcoin_rpc_port}/"
+
+    @property
+    def bitcoin_rpc_socket_target(self) -> tuple[str, int]:
+        if self.bitcoin_rpc_url:
+            parsed = urlparse(self.bitcoin_rpc_url)
+            if parsed.hostname:
+                if parsed.port is not None:
+                    return parsed.hostname, parsed.port
+                if parsed.scheme == "https":
+                    return parsed.hostname, 443
+                if parsed.scheme == "http":
+                    return parsed.hostname, 80
+        return self.bitcoin_rpc_host, self.bitcoin_rpc_port
 
     @staticmethod
     def _resolve_secret(secret_value: str | None, file_path: str | None) -> str | None:

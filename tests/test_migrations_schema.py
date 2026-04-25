@@ -82,6 +82,11 @@ def test_target_tables_exist(inspector: sa.Inspector) -> None:
         "api_keys",
         "refresh_token_sessions",
         "nostr_identities",
+        "nostr_campaigns",
+        "nostr_campaign_triggers",
+        "nostr_campaign_fundings",
+        "nostr_campaign_matches",
+        "nostr_campaign_payouts",
         "wallets",
         "transactions",
         "wallet_addresses",
@@ -94,8 +99,10 @@ def test_target_tables_exist(inspector: sa.Inspector) -> None:
         "escrows",
         "referral_rewards",
         "treasury",
+        "disputes",
         "audit_logs",
         "yield_accruals",
+        "kyc_verifications",
     }.issubset(table_names)
 
 
@@ -681,6 +688,124 @@ def test_audit_logs_schema_matches_spec(inspector: sa.Inspector) -> None:
         foreign_keys,
         name="fk_audit_logs_actor_id_users",
         constrained_columns=["actor_id"],
+        referred_table="users",
+        referred_columns=["id"],
+    )
+
+
+def test_nostr_campaigns_schema_matches_spec(inspector: sa.Inspector) -> None:
+    columns = _column_map(inspector, "nostr_campaigns")
+    indexes = _constraint_names(inspector.get_indexes("nostr_campaigns"))
+    checks = _constraint_names(inspector.get_check_constraints("nostr_campaigns"))
+
+    assert columns["user_id"]["nullable"] is False
+    assert columns["name"]["nullable"] is False
+    assert columns["status"]["default"] is not None
+    assert columns["funding_mode"]["nullable"] is False
+    assert columns["reward_amount_sat"]["nullable"] is False
+    assert columns["budget_total_sat"]["nullable"] is False
+    assert columns["budget_reserved_sat"]["default"] is not None
+    assert columns["budget_spent_sat"]["default"] is not None
+    assert columns["budget_refunded_sat"]["default"] is not None
+    assert columns["max_rewards_per_user"]["default"] is not None
+    assert columns["created_at"]["default"] is not None
+    assert columns["updated_at"]["default"] is not None
+
+    assert {"ix_nostr_campaigns_user_id", "ix_nostr_campaigns_status"}.issubset(indexes)
+    assert {
+        "ck_nostr_campaigns_status_allowed",
+        "ck_nostr_campaigns_funding_mode_allowed",
+        "ck_nostr_campaigns_reward_amount_positive",
+        "ck_nostr_campaigns_budget_total_positive",
+        "ck_nostr_campaigns_budget_non_negative",
+        "ck_nostr_campaigns_max_rewards_positive",
+        "ck_nostr_campaigns_campaign_window_positive",
+    }.issubset(checks)
+    _assert_foreign_key(
+        inspector.get_foreign_keys("nostr_campaigns"),
+        name="fk_nostr_campaigns_user_id_users",
+        constrained_columns=["user_id"],
+        referred_table="users",
+        referred_columns=["id"],
+    )
+
+
+def test_disputes_schema_matches_spec(inspector: sa.Inspector) -> None:
+    columns = _column_map(inspector, "disputes")
+    indexes = _constraint_names(inspector.get_indexes("disputes"))
+    unique_constraints = _constraint_names(inspector.get_unique_constraints("disputes"))
+    checks = _constraint_names(inspector.get_check_constraints("disputes"))
+    foreign_keys = inspector.get_foreign_keys("disputes")
+
+    assert columns["trade_id"]["nullable"] is False
+    assert columns["opened_by"]["nullable"] is False
+    assert columns["reason"]["nullable"] is False
+    assert columns["status"]["default"] is not None
+    assert columns["resolution"]["nullable"] is True
+    assert columns["resolved_by"]["nullable"] is True
+    assert columns["resolved_at"]["nullable"] is True
+    assert columns["resolution_notes"]["nullable"] is True
+    assert columns["created_at"]["default"] is not None
+    assert columns["updated_at"]["default"] is not None
+
+    assert "ix_disputes_status" in indexes
+    assert "uq_disputes_trade_id" in unique_constraints
+    assert {"ck_disputes_status_allowed", "ck_disputes_resolution_allowed"}.issubset(checks)
+    _assert_foreign_key(
+        foreign_keys,
+        name="fk_disputes_trade_id_trades",
+        constrained_columns=["trade_id"],
+        referred_table="trades",
+        referred_columns=["id"],
+    )
+    _assert_foreign_key(
+        foreign_keys,
+        name="fk_disputes_opened_by_users",
+        constrained_columns=["opened_by"],
+        referred_table="users",
+        referred_columns=["id"],
+    )
+    _assert_foreign_key(
+        foreign_keys,
+        name="fk_disputes_resolved_by_users",
+        constrained_columns=["resolved_by"],
+        referred_table="users",
+        referred_columns=["id"],
+    )
+
+
+def test_kyc_verifications_schema_matches_spec(inspector: sa.Inspector) -> None:
+    columns = _column_map(inspector, "kyc_verifications")
+    indexes = _constraint_names(inspector.get_indexes("kyc_verifications"))
+    unique_constraints = _constraint_names(inspector.get_unique_constraints("kyc_verifications"))
+    checks = _constraint_names(inspector.get_check_constraints("kyc_verifications"))
+    foreign_keys = inspector.get_foreign_keys("kyc_verifications")
+
+    assert columns["user_id"]["nullable"] is False
+    assert columns["status"]["default"] is not None
+    assert columns["reviewed_by"]["nullable"] is True
+    assert columns["reviewed_at"]["nullable"] is True
+    assert columns["rejection_reason"]["nullable"] is True
+    assert columns["notes"]["nullable"] is True
+    assert columns["document_url"]["nullable"] is True
+    assert columns["metadata"]["nullable"] is True
+    assert columns["created_at"]["default"] is not None
+    assert columns["updated_at"]["default"] is not None
+
+    assert {"ix_kyc_verifications_status", "ix_kyc_verifications_user_id"}.issubset(indexes)
+    assert "uq_kyc_verifications_user_id" in unique_constraints
+    assert "ck_kyc_verifications_status_allowed" in checks
+    _assert_foreign_key(
+        foreign_keys,
+        name="fk_kyc_verifications_user_id_users",
+        constrained_columns=["user_id"],
+        referred_table="users",
+        referred_columns=["id"],
+    )
+    _assert_foreign_key(
+        foreign_keys,
+        name="fk_kyc_verifications_reviewed_by_users",
+        constrained_columns=["reviewed_by"],
         referred_table="users",
         referred_columns=["id"],
     )
