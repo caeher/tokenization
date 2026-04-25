@@ -75,6 +75,8 @@ services:
       - --bitcoind.zmqpubrawblock=tcp://regtest-bitcoind:28332
       - --bitcoind.zmqpubrawtx=tcp://regtest-bitcoind:28333
       - --rpclisten=0.0.0.0:10009
+      - --wallet-unlock-password-file=/data/lnd/wallet_password
+      - --wallet-unlock-allow-create
     depends_on:
       regtest-bitcoind:
         condition: service_healthy
@@ -95,6 +97,21 @@ services:
       start_period: 120s
     networks:
       - platform
+
+  lnd-init:
+    image: busybox
+    container_name: tokenization-regtest-lnd-init
+    command: >
+      sh -c "mkdir -p /data/lnd &&
+             echo -n \"$${LND_WALLET_PASSWORD:-password}\" > /data/lnd/wallet_password &&
+             chmod 600 /data/lnd/wallet_password"
+    environment:
+      LND_WALLET_PASSWORD: ${LND_WALLET_PASSWORD:-password}
+    volumes:
+      - regtest_lnd_data:/data/lnd
+    networks:
+      - platform
+    restart: "no"
 
   elementsd:
     build:
