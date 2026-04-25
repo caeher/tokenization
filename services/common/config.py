@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     bitcoin_rpc_user: str
     bitcoin_rpc_password: str | None = None
     bitcoin_rpc_password_file: str | None = None
+    bitcoin_wallet_name: str = "tokenization-watchonly"
     bitcoin_network: str
     bitcoin_rpc_required: bool = True
 
