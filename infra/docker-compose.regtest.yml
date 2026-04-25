@@ -302,7 +302,7 @@ services:
     networks:
       - platform
 
-  gateway:
+    gateway:
     build:
       context: ./services/gateway
       dockerfile: Dockerfile
@@ -325,7 +325,12 @@ services:
       - marketplace
       - nostr
       - admin
-    
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.scheme=http"
+      - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.port=80"
     networks:
       - platform
 
