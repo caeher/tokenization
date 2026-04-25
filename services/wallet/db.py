@@ -589,6 +589,25 @@ async def reserve_campaign_balance_from_wallet(
             ),
         )
     )
+
+    tx_result = await conn.execute(
+        sa.insert(transactions_table)
+        .values(
+            id=uuid.uuid4(),
+            wallet_id=_as_uuid(wallet_id),
+            type="ln_send",
+            amount_sat=amount_sat,
+            direction="out",
+            status="confirmed",
+            description=f"Nostr campaign reserve {campaign_id}",
+            created_at=now,
+            confirmed_at=now,
+        )
+        .returning(transactions_table.c.id)
+    )
+    tx_row = tx_result.fetchone()
+    assert tx_row is not None
+
     funding_result = await conn.execute(
         sa.insert(nostr_campaign_fundings_table)
         .values(
@@ -598,6 +617,7 @@ async def reserve_campaign_balance_from_wallet(
             funding_mode="intraledger",
             amount_sat=amount_sat,
             status="confirmed",
+            transaction_id=tx_row.id,
             created_at=now,
             confirmed_at=now,
         )
