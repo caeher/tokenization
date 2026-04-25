@@ -65,8 +65,13 @@ services:
     restart: unless-stopped
     command:
       - --lnddir=/data/lnd
-      - --configfile=/etc/lnd/lnd.conf
-      - --bitcoin.active
+      - --debuglevel=info
+      - --noseedbackup
+      - --rpclisten=0.0.0.0:10009
+      - --restlisten=0.0.0.0:8080
+      - --listen=0.0.0.0:9735
+      - --tlsextradomain=lnd
+      - --tlsextradomain=localhost
       - --bitcoin.regtest
       - --bitcoin.node=bitcoind
       - --bitcoind.rpchost=regtest-bitcoind:18443
@@ -74,14 +79,12 @@ services:
       - --bitcoind.rpcpass=local_rpc_password
       - --bitcoind.zmqpubrawblock=tcp://regtest-bitcoind:28332
       - --bitcoind.zmqpubrawtx=tcp://regtest-bitcoind:28333
-      - --rpclisten=0.0.0.0:10009
       - --wallet-unlock-password-file=/data/lnd/wallet_password
       - --wallet-unlock-allow-create
     depends_on:
       regtest-bitcoind:
         condition: service_healthy
     volumes:
-      - ./infra/lnd/lnd.conf:/etc/lnd/lnd.conf:ro
       - regtest_lnd_data:/data/lnd
     environment:
       - LND_WALLET_PASSWORD=${LND_WALLET_PASSWORD:-password}
@@ -311,6 +314,8 @@ services:
       - marketplace
       - nostr
       - admin
+    ports:
+      - "8050:8000"
     networks:
       - platform
 
