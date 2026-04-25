@@ -1,7 +1,7 @@
 """add wallet address type metadata for parallel bitcoin/liquid flows
 
 Revision ID: 20260425_1200_0005
-Revises: 20260424_1415_0004
+Revises: 0004
 Create Date: 2026-04-25 12:00:00.000000
 """
 from __future__ import annotations
