@@ -74,6 +74,7 @@ services:
       - --bitcoind.rpcpass=local_rpc_password
       - --bitcoind.zmqpubrawblock=tcp://regtest-bitcoind:28332
       - --bitcoind.zmqpubrawtx=tcp://regtest-bitcoind:28333
+      - --rpclisten=0.0.0.0:10009
     depends_on:
       regtest-bitcoind:
         condition: service_healthy
