@@ -59,7 +59,7 @@ services:
     networks:
       - platform
 
-  lnd:
+  lndd:
     image: lightninglabs/lnd:v0.20.0-beta
     container_name: tokenization-regtest-lnd
     restart: unless-stopped
