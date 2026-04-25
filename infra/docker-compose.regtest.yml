@@ -326,14 +326,6 @@ services:
       - admin
     expose:
       - "8000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.tokenization-regtest-gateway.rule=Host(`plan-b2b.cuboplus.caeher.com`)"
-      - "traefik.http.routers.tokenization-regtest-gateway.entrypoints=https"
-      - "traefik.http.routers.tokenization-regtest-gateway.tls=true"
-      - "traefik.http.routers.tokenization-regtest-gateway.service=tokenization-regtest-gateway"
-      - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.scheme=http"
-      - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.port=8000"
     networks:
       - platform
 volumes:
