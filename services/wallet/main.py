@@ -237,6 +237,13 @@ async def _lifespan(app: FastAPI):
             "token_balances",
             "nostr_campaigns",
         ),
+        required_columns={
+            "wallet_addresses": (
+                "address_type",
+                "network",
+                "derivation_path",
+            ),
+        },
     )
 
     # Start background tasks

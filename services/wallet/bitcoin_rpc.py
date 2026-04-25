@@ -50,12 +50,24 @@ class BitcoinRPCClient:
         return node_url, wallet_url
 
     async def _call(self, method: str, *params: Any, wallet_scoped: bool = False) -> Any:
+        return await self._call_with_params(method, list(params), wallet_scoped=wallet_scoped)
+
+    async def _call_named(self, method: str, **params: Any) -> Any:
+        return await self._call_with_params(method, params, wallet_scoped=False)
+
+    async def _call_with_params(
+        self,
+        method: str,
+        params: list[Any] | dict[str, Any],
+        *,
+        wallet_scoped: bool = False,
+    ) -> Any:
         headers = {"Authorization": self.auth_header, "Content-Type": "application/json"}
         payload = {
             "jsonrpc": "1.0",
             "id": "wallet_service",
             "method": method,
-            "params": list(params),
+            "params": params,
         }
         request_url = self.wallet_url if wallet_scoped else self.node_url
         
@@ -101,7 +113,7 @@ class BitcoinRPCClient:
             if self._is_legacy_only_importaddress_error(exc):
                 await self._import_address_descriptor(address, label)
                 return
-            if not self._is_no_wallet_loaded_error(exc):
+            if not self._is_wallet_unavailable_error(exc):
                 raise
 
         await self._ensure_default_wallet_loaded()
@@ -145,20 +157,29 @@ class BitcoinRPCClient:
             if not self._is_wallet_missing_error(exc):
                 raise
 
-        await self._call(
+        await self._call_named(
             "createwallet",
-            self.wallet_name,
-            True,
-            True,
-            "",
-            False,
-            True,
+            wallet_name=self.wallet_name,
+            disable_private_keys=True,
+            blank=True,
+            avoid_reuse=False,
+            descriptors=True,
+            load_on_startup=True,
         )
 
     @staticmethod
     def _is_no_wallet_loaded_error(exc: BitcoinRPCError) -> bool:
         message = str(exc).lower()
         return "no wallet is loaded" in message
+
+    @classmethod
+    def _is_wallet_unavailable_error(cls, exc: BitcoinRPCError) -> bool:
+        message = str(exc).lower()
+        return (
+            cls._is_no_wallet_loaded_error(exc)
+            or cls._is_wallet_missing_error(exc)
+            or "is not loaded" in message
+        )
 
     @staticmethod
     def _is_wallet_missing_error(exc: BitcoinRPCError) -> bool:
