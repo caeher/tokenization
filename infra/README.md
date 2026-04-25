@@ -68,17 +68,23 @@ Use this when you need a regtest stack that is isolated from `infra/.env.local` 
 
 ```bash
 cp infra/.env.regtest.example infra/.env.regtest
-docker compose --project-directory . -f infra/docker-compose.regtest.yml up -d postgres redis bitcoind lnd elementsd
+docker compose --project-directory . -f infra/docker-compose.regtest.yml up -d postgres redis regtest-bitcoind regtest-lnd elementsd
 python scripts/run_db_bootstrap.py --profile regtest
 docker compose --project-directory . -f infra/docker-compose.regtest.yml up -d
 ```
 
 `infra/docker-compose.regtest.yml` injects `infra/.env.regtest` into PostgreSQL, migrations, and the Python services.
 
+If you previously used an older regtest compose file with different service names, clean up orphans before booting again:
+
+```bash
+docker compose --project-directory . -f infra/docker-compose.regtest.yml down --remove-orphans
+```
+
 On a brand-new `regtest_lnd_data` volume, LND may stay unhealthy until a wallet is created. With `noseedbackup=1` in `infra/lnd/lnd.conf`, a wallet is usually created automatically; if the healthcheck still fails, initialize manually before relying on `wallet`:
 
 ```bash
-docker compose --project-directory . -f infra/docker-compose.regtest.yml exec lnd \
+docker compose --project-directory . -f infra/docker-compose.regtest.yml exec regtest-lnd \
   lncli --network=regtest --lnddir=/data/lnd create
 ```
 

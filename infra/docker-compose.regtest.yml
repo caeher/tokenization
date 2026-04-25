@@ -68,7 +68,7 @@ services:
       - --configfile=/etc/lnd/lnd.conf
       - --bitcoin.active
       - --bitcoin.regtest
-      - --bitcoin.node=regtest-bitcoind
+      - --bitcoin.node=bitcoind
       - --bitcoind.rpchost=regtest-bitcoind:18443
       - --bitcoind.rpcuser=local_rpc
       - --bitcoind.rpcpass=local_rpc_password
