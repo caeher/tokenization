@@ -66,12 +66,14 @@ services:
     command:
       - --lnddir=/data/lnd
       - --debuglevel=info
-      - --noseedbackup
+      - --maxpendingchannels=10
+      - --accept-keysend
+      - --listen=0.0.0.0:9735
       - --rpclisten=0.0.0.0:10009
       - --restlisten=0.0.0.0:8080
-      - --listen=0.0.0.0:9735
       - --tlsextradomain=lnd
       - --tlsextradomain=localhost
+      - --tlsextraip=0.0.0.0
       - --bitcoin.regtest
       - --bitcoin.node=bitcoind
       - --bitcoind.rpchost=regtest-bitcoind:18443
