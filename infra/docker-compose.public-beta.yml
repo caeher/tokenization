@@ -38,6 +38,8 @@ services:
     env_file:
       - path: ./infra/.env.beta
         required: false
+    volumes:
+      - migrate_state:/var/lib/tokenization-migrate
     depends_on:
       postgres:
         condition: service_healthy
@@ -166,4 +168,4 @@ services:
 volumes:
   beta_postgres_data:
   beta_redis_data:
-
+  migrate_state:

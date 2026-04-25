@@ -62,6 +62,12 @@ def _utc_now() -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
+def _network_match_condition(address_type: str, network: str) -> sa.ColumnElement[bool]:
+    if address_type == "liquid_confidential" and network == "elementsregtest":
+        return wallet_addresses_table.c.network.in_(("elementsregtest", "liquid"))
+    return wallet_addresses_table.c.network == network
+
+
 def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
@@ -414,10 +420,15 @@ async def list_wallet_transactions(
 async def get_next_derivation_index(
     conn: AsyncConnection,
     wallet_id: str | uuid.UUID,
+    *,
+    address_type: str = "liquid_confidential",
+    network: str = "liquid",
 ) -> int:
     result = await conn.execute(
         sa.select(sa.func.max(wallet_addresses_table.c.derivation_index))
         .where(wallet_addresses_table.c.wallet_id == _as_uuid(wallet_id))
+        .where(wallet_addresses_table.c.address_type == address_type)
+        .where(_network_match_condition(address_type, network))
     )
     max_index = result.scalar()
     return 0 if max_index is None else max_index + 1
@@ -428,7 +439,10 @@ async def save_wallet_address(
     *,
     wallet_id: str | uuid.UUID,
     address: str,
+    address_type: str,
+    network: str,
     derivation_index: int,
+    derivation_path: str | None,
     script_pubkey: str,
     imported_to_node: bool = False,
 ) -> sa.engine.Row:
@@ -439,7 +453,10 @@ async def save_wallet_address(
             id=uuid.uuid4(),
             wallet_id=_as_uuid(wallet_id),
             address=address,
+            address_type=address_type,
+            network=network,
             derivation_index=derivation_index,
+            derivation_path=derivation_path,
             script_pubkey=script_pubkey,
             imported_to_node=imported_to_node,
             created_at=now,
@@ -452,11 +469,18 @@ async def save_wallet_address(
     return row
 
 
-async def list_imported_wallet_addresses(conn: AsyncConnection) -> list[sa.engine.Row]:
-    result = await conn.execute(
-        sa.select(wallet_addresses_table)
-        .where(wallet_addresses_table.c.imported_to_node.is_(True))
-    )
+async def list_imported_wallet_addresses(
+    conn: AsyncConnection,
+    *,
+    address_type: str | None = None,
+    network: str | None = None,
+) -> list[sa.engine.Row]:
+    stmt = sa.select(wallet_addresses_table).where(wallet_addresses_table.c.imported_to_node.is_(True))
+    if address_type is not None:
+        stmt = stmt.where(wallet_addresses_table.c.address_type == address_type)
+    if network is not None:
+        stmt = stmt.where(_network_match_condition(address_type or "", network))
+    result = await conn.execute(stmt)
     return list(result.fetchall())
 
 

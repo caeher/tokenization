@@ -111,6 +111,8 @@ services:
     env_file:
       - path: ./infra/.env.testnet4.example
         required: false
+    volumes:
+      - migrate_state:/var/lib/tokenization-migrate
     depends_on:
       postgres:
         condition: service_healthy
@@ -259,3 +261,4 @@ volumes:
   testnet4_bitcoin_data:
   testnet4_lnd_data:
   testnet4_elements_data:
+  migrate_state:

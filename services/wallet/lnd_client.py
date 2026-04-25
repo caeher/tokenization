@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import codecs
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import grpc
@@ -13,6 +14,20 @@ if TYPE_CHECKING:
     from services.common.config import Settings
 
 logger = logging.getLogger(__name__)
+
+
+def _read_macaroon_hex(macaroon_path: str) -> str:
+    raw = Path(macaroon_path).read_bytes()
+    try:
+        text = raw.decode("ascii").strip()
+    except UnicodeDecodeError:
+        text = ""
+
+    # Support repo-managed hex macaroons in addition to LND's binary macaroon files.
+    if text and all(ch in "0123456789abcdefABCDEF" for ch in text) and len(text) % 2 == 0:
+        return text.lower()
+
+    return codecs.encode(raw, "hex").decode()
 
 class LNDClient:
     def __init__(self, settings: Settings):
@@ -52,8 +67,7 @@ class LNDClient:
                 cert = f.read()
 
             # Read Macaroon
-            with open(self.settings.lnd_macaroon_path, "rb") as f:
-                macaroon = codecs.encode(f.read(), "hex").decode()
+            macaroon = _read_macaroon_hex(self.settings.lnd_macaroon_path)
 
             # Create credentials
             cert_creds = grpc.ssl_channel_credentials(cert)

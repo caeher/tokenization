@@ -68,17 +68,23 @@ Use this when you need a regtest stack that is isolated from `infra/.env.local` 
 
 ```bash
 cp infra/.env.regtest.example infra/.env.regtest
-docker compose --project-directory . -f infra/docker-compose.regtest.yml up -d postgres redis bitcoind lnd elementsd
+docker compose --project-directory . -f infra/docker-compose.regtest.yml up -d postgres redis regtest-bitcoind regtest-lnd elementsd
 python scripts/run_db_bootstrap.py --profile regtest
 docker compose --project-directory . -f infra/docker-compose.regtest.yml up -d
 ```
 
 `infra/docker-compose.regtest.yml` injects `infra/.env.regtest` into PostgreSQL, migrations, and the Python services.
 
+If you previously used an older regtest compose file with different service names, clean up orphans before booting again:
+
+```bash
+docker compose --project-directory . -f infra/docker-compose.regtest.yml down --remove-orphans
+```
+
 On a brand-new `regtest_lnd_data` volume, LND may stay unhealthy until a wallet is created. With `noseedbackup=1` in `infra/lnd/lnd.conf`, a wallet is usually created automatically; if the healthcheck still fails, initialize manually before relying on `wallet`:
 
 ```bash
-docker compose --project-directory . -f infra/docker-compose.regtest.yml exec lnd \
+docker compose --project-directory . -f infra/docker-compose.regtest.yml exec regtest-lnd \
   lncli --network=regtest --lnddir=/data/lnd create
 ```
 
@@ -241,6 +247,7 @@ All Python services use the shared settings loader in `services/common/config.py
 
 - Dependency gating can be tuned with `BITCOIN_RPC_REQUIRED`, `LND_GRPC_REQUIRED`, and `ELEMENTS_RPC_REQUIRED`.
 - `AUTH_SERVICE_URL` defaults to `http://auth:8000` if unset; it is set explicitly in `infra/.env.local` and `infra/.env.regtest` templates.
+- `BITCOIN_RPC_URL` is optional and can be used when Bitcoin Core is behind a reverse proxy or HTTPS endpoint; when set, it overrides `BITCOIN_RPC_HOST` and `BITCOIN_RPC_PORT` for HTTP calls.
 
 ## Public beta
 

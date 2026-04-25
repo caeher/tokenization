@@ -33,24 +33,33 @@ services:
     networks:
       - platform
 
-  bitcoind:
+  regtest-bitcoind:
     image: lncm/bitcoind:v28.0
     container_name: tokenization-regtest-bitcoind
     user: "0:0"
     command:
-      - -regtest
+      - -regtest=1
+      - -server=1
+      - -txindex=1
+      - -fallbackfee=0.00001
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcport=18443
+      - -rpcuser=local_rpc
+      - -rpcpassword=local_rpc_password
+      - -zmqpubrawblock=tcp://0.0.0.0:28332
+      - -zmqpubrawtx=tcp://0.0.0.0:28333
+      - -addnode=185.182.8.134:18445
+      - -printtoconsole=1
       - -datadir=/data/.bitcoin
-      - -conf=/data/.bitcoin/bitcoin.conf
-      - -printtoconsole
     restart: unless-stopped
     volumes:
-      - ./infra/bitcoin/bitcoin.conf:/data/.bitcoin/bitcoin.conf:ro
       - regtest_bitcoin_data:/data/.bitcoin
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "bitcoin-cli -regtest -datadir=/data/.bitcoin getblockchaininfo >/dev/null 2>&1 || exit 1"
+          "bitcoin-cli -regtest -datadir=/data/.bitcoin -rpcuser=local_rpc -rpcpassword=local_rpc_password -rpcconnect=127.0.0.1 -rpcport=18443 getblockchaininfo >/dev/null 2>&1 || exit 1"
         ]
       interval: 15s
       timeout: 10s
@@ -59,27 +68,37 @@ services:
     networks:
       - platform
 
-  lndd:
+  regtest-lnd:
     image: lightninglabs/lnd:v0.20.0-beta
     container_name: tokenization-regtest-lnd
     restart: unless-stopped
     command:
       - --lnddir=/data/lnd
-      - --configfile=/etc/lnd/lnd.conf
-      - --bitcoin.active
+      - --debuglevel=info
+      - --maxpendingchannels=10
+      - --accept-keysend
+      - --listen=0.0.0.0:9735
+      - --rpclisten=0.0.0.0:10009
+      - --restlisten=0.0.0.0:8080
+      - --tlsextradomain=lnd
+      - --tlsextradomain=localhost
+      - --tlsextraip=0.0.0.0
       - --bitcoin.regtest
       - --bitcoin.node=bitcoind
-      - --bitcoind.rpchost=bitcoind:18443
+      - --bitcoind.rpchost=regtest-bitcoind:18443
       - --bitcoind.rpcuser=local_rpc
       - --bitcoind.rpcpass=local_rpc_password
-      - --bitcoind.zmqpubrawblock=tcp://bitcoind:28332
-      - --bitcoind.zmqpubrawtx=tcp://bitcoind:28333
+      - --bitcoind.zmqpubrawblock=tcp://regtest-bitcoind:28332
+      - --bitcoind.zmqpubrawtx=tcp://regtest-bitcoind:28333
+      - --wallet-unlock-password-file=/data/lnd/wallet_password
+      - --wallet-unlock-allow-create
     depends_on:
-      bitcoind:
+      regtest-bitcoind:
         condition: service_healthy
     volumes:
-      - ./infra/lnd/lnd.conf:/etc/lnd/lnd.conf:ro
       - regtest_lnd_data:/data/lnd
+    environment:
+      - LND_WALLET_PASSWORD=${LND_WALLET_PASSWORD:-password}
     healthcheck:
       test:
         [
@@ -93,6 +112,21 @@ services:
     networks:
       - platform
 
+  lnd-init:
+    image: busybox
+    container_name: tokenization-regtest-lnd-init
+    command: >
+      sh -c "mkdir -p /data/lnd &&
+             echo -n \"$${LND_WALLET_PASSWORD:-password}\" > /data/lnd/wallet_password &&
+             chmod 600 /data/lnd/wallet_password"
+    environment:
+      LND_WALLET_PASSWORD: ${LND_WALLET_PASSWORD:-password}
+    volumes:
+      - regtest_lnd_data:/data/lnd
+    networks:
+      - platform
+    restart: "no"
+
   elementsd:
     build:
       context: ./infra/elements
@@ -100,7 +134,7 @@ services:
     container_name: tokenization-regtest-elementsd
     restart: unless-stopped
     depends_on:
-      bitcoind:
+      regtest-bitcoind:
         condition: service_healthy
     environment:
       ELEMENTS_CONF_FILE: /etc/elements/elements.conf
@@ -181,10 +215,10 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      bitcoind:
+      regtest-bitcoind:
         condition: service_healthy
-      lnd:
-        condition: service_healthy
+      regtest-lnd:
+        condition: service_started
       elementsd:
         condition: service_healthy
     networks:
@@ -291,6 +325,7 @@ services:
       - marketplace
       - nostr
       - admin
+    
     networks:
       - platform
 

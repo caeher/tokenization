@@ -149,6 +149,8 @@ services:
     env_file:
       - path: ./infra/.env.local
         required: false
+    volumes:
+      - migrate_state:/var/lib/tokenization-migrate
     depends_on:
       postgres:
         condition: service_healthy
@@ -179,7 +181,7 @@ services:
       bitcoind:
         condition: service_healthy
       lnd:
-        condition: service_healthy
+        condition: service_started
       elementsd:
         condition: service_healthy
     ports:
@@ -346,6 +348,7 @@ volumes:
   bitcoin_data:
   lnd_data:
   elements_data:
+  migrate_state:
 
 networks:
   platform:

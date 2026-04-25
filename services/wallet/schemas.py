@@ -40,6 +40,12 @@ class OnchainAddressResponse(BaseModel):
     type: Literal["liquid_confidential"]
 
 
+class BitcoinAddressResponse(BaseModel):
+    address: str
+    type: Literal["bitcoin_segwit"]
+    network: Literal["mainnet", "testnet", "testnet4", "signet", "regtest"]
+
+
 class PegInAddressResponse(BaseModel):
     mainchain_address: str
     claim_script: str

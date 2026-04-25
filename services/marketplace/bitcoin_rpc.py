@@ -28,11 +28,12 @@ class BitcoinRPCClient:
         *,
         host: str,
         port: int,
+        url: str | None = None,
         username: str,
         password: str | None,
         timeout_seconds: float = 5.0,
     ) -> None:
-        self._rpc_url = f"http://{host}:{port}/"
+        self._rpc_url = url or f"http://{host}:{port}/"
         self._rpc_user = username
         self._rpc_password = password
         self._timeout_seconds = timeout_seconds

@@ -12,4 +12,4 @@ RUN pip install -r /tmp/requirements-migrations.txt -r /tmp/requirements-bootstr
 
 COPY . /app
 
-CMD ["python", "-u", "scripts/db_bootstrap.py", "--migrate-only"]
+CMD ["python", "-u", "scripts/run_migrate_once.py"]

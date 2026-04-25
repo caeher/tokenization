@@ -784,6 +784,57 @@
         }
       }
     },
+    "/wallet/bitcoin/address": {
+      "post": {
+        "summary": "Create a new Bitcoin native SegWit deposit address",
+        "operationId": "create_bitcoin_address_wallet_bitcoin_address_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BitcoinAddressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/wallet/pegin/address": {
       "get": {
         "summary": "Create a mainchain peg-in deposit address",
@@ -1157,6 +1208,37 @@
   },
   "components": {
     "schemas": {
+      "BitcoinAddressResponse": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "type": {
+            "type": "string",
+            "const": "bitcoin_segwit",
+            "title": "Type"
+          },
+          "network": {
+            "type": "string",
+            "enum": [
+              "mainnet",
+              "testnet",
+              "testnet4",
+              "signet",
+              "regtest"
+            ],
+            "title": "Network"
+          }
+        },
+        "type": "object",
+        "required": [
+          "address",
+          "type",
+          "network"
+        ],
+        "title": "BitcoinAddressResponse"
+      },
       "Bolt11DecodeRequest": {
         "properties": {
           "payment_request": {

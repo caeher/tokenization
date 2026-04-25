@@ -831,7 +831,7 @@
         "properties": {
           "assets": {
             "items": {
-              "$ref": "#/components/schemas/AssetOut"
+              "$ref": "#/components/schemas/AssetDetailOut"
             },
             "type": "array",
             "title": "Assets"
