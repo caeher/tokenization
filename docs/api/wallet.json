@@ -784,10 +784,10 @@
         }
       }
     },
-    "/wallet/bitcoin/address": {
+    "/bitcoin/address": {
       "post": {
         "summary": "Create a new Bitcoin native SegWit deposit address",
-        "operationId": "create_bitcoin_address_wallet_bitcoin_address_post",
+        "operationId": "create_bitcoin_address_bitcoin_address_post",
         "security": [
           {
             "HTTPBearer": []

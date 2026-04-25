@@ -1690,10 +1690,16 @@ async def create_onchain_address(
 
 
 @app.post(
-    "/wallet/bitcoin/address",
+    "/bitcoin/address",
     status_code=status.HTTP_201_CREATED,
     response_model=BitcoinAddressResponse,
     summary="Create a new Bitcoin native SegWit deposit address",
+)
+@app.post(
+    "/wallet/bitcoin/address",
+    status_code=status.HTTP_201_CREATED,
+    response_model=BitcoinAddressResponse,
+    include_in_schema=False,
 )
 async def create_bitcoin_address(
     principal: AuthenticatedPrincipal = Depends(_require_api_key_scopes("wallet:write")),

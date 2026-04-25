@@ -269,6 +269,35 @@ class TestOnchainDepositAddress:
         assert body["network"] == "regtest"
         assert body["address"].startswith("bcrt1")
 
+    def test_user_can_request_new_bitcoin_regtest_deposit_address_via_gateway_path(self, client):
+        app_client, _, settings = client
+        fake_user = _make_fake_user()
+        fake_wallet = _make_fake_wallet(fake_user.id)
+        access_token = _issue_access_token(fake_user, settings.jwt_secret)
+
+        with (
+            patch("services.wallet.main.get_user_by_id", AsyncMock(return_value=fake_user)),
+            patch("services.wallet.main.get_or_create_wallet", AsyncMock(return_value=fake_wallet)),
+            patch(
+                "services.wallet.main._create_real_bitcoin_address",
+                AsyncMock(
+                    return_value=SimpleNamespace(
+                        address="bcrt1qk6h49ny5h06cy0xrqy7un0zzwe4cv74atagt9m",
+                    )
+                ),
+            ),
+        ):
+            resp = app_client.post(
+                "/bitcoin/address",
+                headers=_auth_headers(access_token),
+            )
+
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body["type"] == "bitcoin_segwit"
+        assert body["network"] == "regtest"
+        assert body["address"].startswith("bcrt1")
+
 
 class TestOnchainFees:
     def test_user_can_get_fee_estimates(self, client):
