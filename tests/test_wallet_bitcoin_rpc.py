@@ -68,23 +68,42 @@ async def test_importaddress_creates_wallet_when_default_missing() -> None:
             BitcoinRPCError("No wallet is loaded", code=-19),
             BitcoinRPCError("Requested wallet does not exist or is not loaded", code=-18),
             None,
-            None,
         ]
     )
+    client._call_named = AsyncMock(return_value=None)
 
     await client.importaddress("bcrt1qexample")
 
     assert client._call.await_args_list[1].args == ("loadwallet", "tokenization-watchonly")
-    assert client._call.await_args_list[2].args == (
-        "createwallet",
-        "tokenization-watchonly",
-        True,
-        True,
-        "",
-        False,
-        True,
+    assert client._call_named.await_args_list[0].args == ("createwallet",)
+    assert client._call_named.await_args_list[0].kwargs == {
+        "wallet_name": "tokenization-watchonly",
+        "disable_private_keys": True,
+        "blank": True,
+        "avoid_reuse": False,
+        "descriptors": True,
+        "load_on_startup": True,
+    }
+    assert client._call.await_args_list[2].args[0] == "importaddress"
+
+
+@pytest.mark.asyncio
+async def test_importaddress_creates_wallet_when_wallet_endpoint_is_unloaded() -> None:
+    client = BitcoinRPCClient(_SettingsStub())
+    client._call = AsyncMock(
+        side_effect=[
+            BitcoinRPCError("Requested wallet does not exist or is not loaded", code=-18),
+            BitcoinRPCError("Requested wallet does not exist or is not loaded", code=-18),
+            None,
+        ]
     )
-    assert client._call.await_args_list[3].args[0] == "importaddress"
+    client._call_named = AsyncMock(return_value=None)
+
+    await client.importaddress("bcrt1qexample")
+
+    assert client._call.await_args_list[1].args == ("loadwallet", "tokenization-watchonly")
+    assert client._call_named.await_args_list[0].args == ("createwallet",)
+    assert client._call.await_args_list[2].args[0] == "importaddress"
 
 
 @pytest.mark.asyncio
