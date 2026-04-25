@@ -11,6 +11,6 @@ RUN pip install -r /tmp/requirements.txt
 
 COPY . /app
 
-EXPOSE 8001
+EXPOSE 8010
 
-CMD ["uvicorn", "services.auth.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "services.auth.main:app", "--host", "0.0.0.0", "--port", "8010"]
