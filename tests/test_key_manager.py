@@ -148,3 +148,20 @@ def test_derive_liquid_address_testnet4_uses_test_prefix(encryption_key):
     assert derived.confidential_address.startswith("tlq1")
     assert derived.unconfidential_address.startswith("tex1")
 
+def test_derive_bitcoin_segwit_address_regtest(key_manager):
+    seed = b"0123456789abcdef" * 4
+    derived = key_manager.derive_bitcoin_segwit_address(seed, 0)
+
+    assert derived.address.startswith("bcrt1")
+    assert len(derived.script_pubkey) == 44
+    assert derived.script_pubkey.startswith("0014")
+    assert derived.derivation_path == "m/84'/1'/0'/0/0"
+
+def test_derive_bitcoin_segwit_address_mainnet(encryption_key):
+    km_main = KeyManager(encryption_key=encryption_key, bitcoin_network="mainnet")
+    seed = b"0123456789abcdef" * 4
+    derived = km_main.derive_bitcoin_segwit_address(seed, 0)
+
+    assert derived.address.startswith("bc1")
+    assert derived.derivation_path == "m/84'/0'/0'/0/0"
+

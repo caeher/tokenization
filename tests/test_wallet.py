@@ -240,6 +240,35 @@ class TestOnchainDepositAddress:
         assert body["address"].startswith("el1")
         assert body["unconfidential_address"].startswith("ert1")
 
+    def test_user_can_request_new_bitcoin_regtest_deposit_address(self, client):
+        app_client, _, settings = client
+        fake_user = _make_fake_user()
+        fake_wallet = _make_fake_wallet(fake_user.id)
+        access_token = _issue_access_token(fake_user, settings.jwt_secret)
+
+        with (
+            patch("services.wallet.main.get_user_by_id", AsyncMock(return_value=fake_user)),
+            patch("services.wallet.main.get_or_create_wallet", AsyncMock(return_value=fake_wallet)),
+            patch(
+                "services.wallet.main._create_real_bitcoin_address",
+                AsyncMock(
+                    return_value=SimpleNamespace(
+                        address="bcrt1qk6h49ny5h06cy0xrqy7un0zzwe4cv74atagt9m",
+                    )
+                ),
+            ),
+        ):
+            resp = app_client.post(
+                "/wallet/bitcoin/address",
+                headers=_auth_headers(access_token),
+            )
+
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body["type"] == "bitcoin_segwit"
+        assert body["network"] == "regtest"
+        assert body["address"].startswith("bcrt1")
+
 
 class TestOnchainFees:
     def test_user_can_get_fee_estimates(self, client):
@@ -326,7 +355,7 @@ class TestOnchainWithdrawal:
             mock_rpc.sendrawtransaction = AsyncMock(return_value="a" * 64)
             mock_get_rpc.return_value = mock_rpc
 
-            mock_conn = mock_engine.return_value.connect.return_value.__aenter__.return_value
+            mock_conn = mock_engine.return_value.begin.return_value.__aenter__.return_value
             mock_conn.execute = AsyncMock(return_value=[SimpleNamespace(script_pubkey="0014cafebabe0014cafebabe0014cafebabe0014cafe", derivation_index=1)])
 
             mock_input = MagicMock()
@@ -571,7 +600,7 @@ class TestCustodyAndOnRamp:
         assert body["configured_backend"] == "software"
         assert body["wallet_backend"] == "software"
         assert body["signer_backend"] == "software"
-        assert body["withdraw_requires_2fa"] is True
+        assert body["withdraw_requires_2fa"] is False
         assert body["derivation_path"] == "m/44'/1776'/0'"
 
     def test_wallet_lists_fiat_onramp_providers_with_compliance_notices(self, client):

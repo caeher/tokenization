@@ -79,12 +79,14 @@ from .db import (
 import asyncio
 from .reconciliation import reconciliation_loop, lightning_sync_loop, sync_wallet_lightning_state
 from .key_manager import KeyManager
+from .bitcoin_rpc import BitcoinRPCError, get_bitcoin_rpc
 from .liquid_rpc import ElementsRPCError, get_liquid_rpc
 from .lnd_client import LNDClient
 from .schemas import (
     CampaignFundingInvoiceRequest,
     CampaignFundingResponse,
     CampaignFundingSyncRequest,
+    BitcoinAddressResponse,
     CampaignFundsPayRequest,
     CampaignFundsReserveRequest,
     CampaignPaymentResponse,
@@ -556,7 +558,12 @@ async def _create_real_onchain_address(conn: AsyncConnection, wallet: sa.engine.
         ) from exc
 
     await lock_wallet(conn, str(_row_value(wallet, "id")))
-    idx = await get_next_derivation_index(conn, str(_row_value(wallet, "id")))
+    idx = await get_next_derivation_index(
+        conn,
+        str(_row_value(wallet, "id")),
+        address_type="liquid_confidential",
+        network=settings.elements_network,
+    )
     derived_address = key_mgr.derive_liquid_address(seed, idx)
 
     liquid_rpc = get_liquid_rpc(settings)
@@ -582,7 +589,65 @@ async def _create_real_onchain_address(conn: AsyncConnection, wallet: sa.engine.
         conn,
         wallet_id=str(_row_value(wallet, "id")),
         address=derived_address.confidential_address,
+        address_type="liquid_confidential",
+        network=settings.elements_network,
         derivation_index=idx,
+        derivation_path=derived_address.derivation_path,
+        script_pubkey=derived_address.script_pubkey,
+        imported_to_node=True,
+    )
+
+    return derived_address
+
+
+async def _create_real_bitcoin_address(conn: AsyncConnection, wallet: sa.engine.Row):
+    try:
+        encrypted_seed = bytes(_row_value(wallet, "encrypted_seed", b""))
+        key_mgr = KeyManager(
+            settings.wallet_encryption_key,
+            settings.bitcoin_network,
+            elements_network=settings.elements_network,
+        )
+        seed = key_mgr.decrypt_seed(encrypted_seed)
+    except Exception as exc:
+        raise ContractError(
+            code="wallet_seed_error",
+            message="Failed to decrypt wallet seed.",
+            status_code=500,
+        ) from exc
+
+    await lock_wallet(conn, str(_row_value(wallet, "id")))
+    idx = await get_next_derivation_index(
+        conn,
+        str(_row_value(wallet, "id")),
+        address_type="bitcoin_segwit",
+        network=settings.bitcoin_network,
+    )
+    derived_address = key_mgr.derive_bitcoin_segwit_address(seed, idx)
+
+    bitcoin_rpc = get_bitcoin_rpc(settings)
+    try:
+        await bitcoin_rpc.importaddress(
+            derived_address.address,
+            label=f"wallet_{_row_value(wallet, 'id')}",
+            rescan=False,
+        )
+    except BitcoinRPCError as exc:
+        logger.error("Failed to import Bitcoin address %s into Bitcoin Core: %s", derived_address.address, exc)
+        raise ContractError(
+            code="bitcoin_rpc_unavailable",
+            message="Bitcoin Core could not register the deposit address.",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        ) from exc
+
+    await save_wallet_address(
+        conn,
+        wallet_id=str(_row_value(wallet, "id")),
+        address=derived_address.address,
+        address_type="bitcoin_segwit",
+        network=settings.bitcoin_network,
+        derivation_index=idx,
+        derivation_path=derived_address.derivation_path,
         script_pubkey=derived_address.script_pubkey,
         imported_to_node=True,
     )
@@ -1614,6 +1679,27 @@ async def create_onchain_address(
         address=address_bundle.confidential_address,
         unconfidential_address=address_bundle.unconfidential_address,
         type="liquid_confidential",
+    ).model_dump()
+
+
+@app.post(
+    "/wallet/bitcoin/address",
+    status_code=status.HTTP_201_CREATED,
+    response_model=BitcoinAddressResponse,
+    summary="Create a new Bitcoin native SegWit deposit address",
+)
+async def create_bitcoin_address(
+    principal: AuthenticatedPrincipal = Depends(_require_api_key_scopes("wallet:write")),
+):
+    async with _runtime_engine().begin() as conn:
+        wallet = await get_or_create_wallet(conn, principal.id)
+        address_bundle = await _create_real_bitcoin_address(conn, wallet)
+
+    record_business_event("wallet_bitcoin_address_create")
+    return BitcoinAddressResponse(
+        address=address_bundle.address,
+        type="bitcoin_segwit",
+        network=settings.bitcoin_network,
     ).model_dump()
 
 

@@ -282,7 +282,10 @@ def test_wallet_addresses_schema_matches_spec(inspector: sa.Inspector) -> None:
 
     assert columns["wallet_id"]["nullable"] is False
     assert columns["address"]["nullable"] is False
+    assert columns["address_type"]["nullable"] is False
+    assert columns["network"]["nullable"] is False
     assert columns["derivation_index"]["nullable"] is False
+    assert "derivation_path" in columns
     assert columns["script_pubkey"]["nullable"] is False
     assert columns["imported_to_node"]["default"] is not None
 

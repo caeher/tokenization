@@ -16,7 +16,7 @@ from services.common.db.metadata import (
     onchain_deposits as deposits_table,
     transactions as transactions_table,
 )
-from .liquid_rpc import ElementsRPCError, get_liquid_rpc
+from .bitcoin_rpc import BitcoinRPCError, get_bitcoin_rpc as get_native_bitcoin_rpc
 from .db import (
     list_imported_wallet_addresses,
     list_pending_lightning_receives,
@@ -26,6 +26,7 @@ from .db import (
     update_transaction_status,
     update_transaction_status_by_txid,
 )
+from .liquid_rpc import ElementsRPCError, get_liquid_rpc
 from .lnd_client import LNDClient
 
 logger = logging.getLogger(__name__)
@@ -106,26 +107,23 @@ async def _credit_confirmed_deposit(
     return True
 
 
-async def reconcile_deposits(engine: AsyncEngine, settings: Settings) -> None:
-    liquid_rpc = get_bitcoin_rpc(settings)
-    confirmation_threshold = _confirmation_threshold(settings)
-
-    async with engine.connect() as conn:
-        address_rows = await list_imported_wallet_addresses(conn)
-
+async def _reconcile_address_rows(
+    engine: AsyncEngine,
+    *,
+    address_rows: list[sa.engine.Row],
+    listunspent: object,
+    rpc_error_type: type[Exception],
+    rpc_name: str,
+    confirmation_threshold: int,
+) -> None:
     if not address_rows:
         return
 
-    # Primary lookup by script_pubkey: it is encoding-independent and survives the
-    # confidential ("el1q…") → unconfidential ("ert1q…") address translation that
-    # Elements applies to the `address` field in listunspent results.
     script_pubkey_map = {
         row.script_pubkey: {"wallet_address_id": row.id, "wallet_id": row.wallet_id}
         for row in address_rows
         if getattr(row, "script_pubkey", None)
     }
-    # Fallback lookup by stored address string (handles rows without script_pubkey and
-    # the case where Elements returns the same address format we stored).
     address_map = {
         row.address: {"wallet_address_id": row.id, "wallet_id": row.wallet_id}
         for row in address_rows
@@ -133,9 +131,9 @@ async def reconcile_deposits(engine: AsyncEngine, settings: Settings) -> None:
     address_list = [row.address for row in address_rows]
 
     try:
-        unspents = await liquid_rpc.listunspent(0, 9_999_999, address_list)
-    except ElementsRPCError as exc:
-        logger.warning("Deposit reconciliation skipped because Elements RPC is unavailable: %s", exc)
+        unspents = await listunspent(0, 9_999_999, address_list)
+    except rpc_error_type as exc:
+        logger.warning("%s deposit reconciliation skipped because RPC is unavailable: %s", rpc_name, exc)
         return
 
     async with engine.connect() as conn:
@@ -148,12 +146,8 @@ async def reconcile_deposits(engine: AsyncEngine, settings: Settings) -> None:
             if txid is None or vout is None or amount_sat <= 0:
                 continue
 
-            # scriptPubKey is canonical: it matches regardless of whether Elements
-            # returns the confidential or unconfidential form of the address.
-            utxo_script = utxo.get("scriptPubKey", "")
-            address_info = script_pubkey_map.get(utxo_script)
+            address_info = script_pubkey_map.get(utxo.get("scriptPubKey", ""))
             if address_info is None:
-                # Fallback: match by the address string returned in the UTXO.
                 address_info = address_map.get(utxo.get("address", ""))
             if address_info is None:
                 continue
@@ -197,7 +191,6 @@ async def reconcile_deposits(engine: AsyncEngine, settings: Settings) -> None:
                     )
                 continue
 
-            existing_status = existing.status
             if confirmations < confirmation_threshold:
                 await conn.execute(
                     sa.update(deposits_table)
@@ -207,7 +200,7 @@ async def reconcile_deposits(engine: AsyncEngine, settings: Settings) -> None:
                 await conn.commit()
                 continue
 
-            if existing_status in {"pending", "confirmed"}:
+            if existing.status in {"pending", "confirmed"}:
                 await _credit_confirmed_deposit(
                     conn,
                     deposit_id=existing.id,
@@ -223,6 +216,48 @@ async def reconcile_deposits(engine: AsyncEngine, settings: Settings) -> None:
                     .values(confirmations=confirmations)
                 )
                 await conn.commit()
+
+
+async def reconcile_deposits(engine: AsyncEngine, settings: Settings) -> None:
+    liquid_rpc = get_bitcoin_rpc(settings)
+    confirmation_threshold = _confirmation_threshold(settings)
+
+    async with engine.connect() as conn:
+        address_rows = await list_imported_wallet_addresses(
+            conn,
+            address_type="liquid_confidential",
+            network=getattr(settings, "elements_network", "liquid"),
+        )
+
+    await _reconcile_address_rows(
+        engine,
+        address_rows=address_rows,
+        listunspent=liquid_rpc.listunspent,
+        rpc_error_type=ElementsRPCError,
+        rpc_name="Liquid",
+        confirmation_threshold=confirmation_threshold,
+    )
+
+
+async def reconcile_bitcoin_deposits(engine: AsyncEngine, settings: Settings) -> None:
+    bitcoin_rpc = get_native_bitcoin_rpc(settings)
+    confirmation_threshold = _confirmation_threshold(settings)
+
+    async with engine.connect() as conn:
+        address_rows = await list_imported_wallet_addresses(
+            conn,
+            address_type="bitcoin_segwit",
+            network=settings.bitcoin_network,
+        )
+
+    await _reconcile_address_rows(
+        engine,
+        address_rows=address_rows,
+        listunspent=bitcoin_rpc.listunspent,
+        rpc_error_type=BitcoinRPCError,
+        rpc_name="Bitcoin",
+        confirmation_threshold=confirmation_threshold,
+    )
 
 
 async def reconcile_withdrawals(engine: AsyncEngine, settings: Settings) -> None:
@@ -339,6 +374,7 @@ async def reconciliation_loop(engine: AsyncEngine, settings: Settings) -> None:
     while True:
         try:
             await reconcile_deposits(engine, settings)
+            await reconcile_bitcoin_deposits(engine, settings)
             await reconcile_withdrawals(engine, settings)
         except asyncio.CancelledError:
             logger.info("On-chain reconciliation loop cancelled")

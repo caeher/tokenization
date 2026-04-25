@@ -291,6 +291,8 @@ services:
       - marketplace
       - nostr
       - admin
+    ports:
+      - "8000:8000"
     networks:
       - platform
 

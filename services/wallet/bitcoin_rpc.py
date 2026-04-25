@@ -5,7 +5,10 @@ from typing import Any
 
 import httpx
 
-from common.config import Settings
+try:
+    from common.config import Settings
+except ImportError:
+    from services.common.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +65,15 @@ class BitcoinRPCClient:
 
     async def importdescriptors(self, requests: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return await self._call("importdescriptors", requests)
+
+    async def importaddress(
+        self,
+        address: str,
+        label: str = "",
+        rescan: bool = False,
+        p2sh: bool = False,
+    ) -> None:
+        await self._call("importaddress", address, label, rescan, p2sh)
 
     async def getdescriptorinfo(self, descriptor: str) -> dict[str, Any]:
         return await self._call("getdescriptorinfo", descriptor)

@@ -11,12 +11,14 @@ from common.custody import CustodyError, build_wallet_custody
 
 try:
     from embit import bip32
+    from embit.networks import NETWORKS as BITCOIN_NETWORKS
     from embit.liquid import slip77
     from embit.liquid.addresses import address as liquid_address
     from embit.liquid.networks import NETWORKS as LIQUID_NETWORKS
     from embit.script import p2wpkh
 except ImportError:
     bip32 = None
+    BITCOIN_NETWORKS = {}
     slip77 = None
     liquid_address = None
     LIQUID_NETWORKS = {}
@@ -46,6 +48,14 @@ class DerivedLiquidAddress:
     derivation_path: str
 
 
+@dataclass(frozen=True)
+class DerivedBitcoinAddress:
+    address: str
+    script_pubkey: str
+    public_key: str
+    derivation_path: str
+
+
 def _network_name(bitcoin_network: str) -> str:
     normalized = bitcoin_network.lower()
     if normalized == "mainnet":
@@ -53,6 +63,15 @@ def _network_name(bitcoin_network: str) -> str:
     if normalized in {"testnet", "testnet4", "signet"}:
         return "liquidtestnet"
     return "elementsregtest"
+
+
+def _bitcoin_network_name(bitcoin_network: str) -> str:
+    normalized = bitcoin_network.lower()
+    if normalized == "mainnet":
+        return "main"
+    if normalized in {"testnet", "testnet4", "signet"}:
+        return "test"
+    return "regtest"
 
 
 class KeyManager:
@@ -152,5 +171,24 @@ class KeyManager:
             script_pubkey=script_pubkey.data.hex(),
             blinding_private_key=blinding_private_key.secret.hex(),
             blinding_pubkey=blinding_pubkey.to_string(),
+            derivation_path=path,
+        )
+
+    def derive_bitcoin_segwit_address(self, seed: bytes, derivation_index: int) -> DerivedBitcoinAddress:
+        """
+        Derives a native SegWit receive address (BIP84) for the configured Bitcoin network.
+        """
+        _require_embit()
+        bitcoin_network = _bitcoin_network_name(self.bitcoin_network)
+        network = BITCOIN_NETWORKS[bitcoin_network]
+        coin_type = 0 if self.bitcoin_network == "mainnet" else 1
+        root = bip32.HDKey.from_seed(seed, version=network["xprv"])
+        path = f"m/84'/{coin_type}'/0'/0/{derivation_index}"
+        derived = root.derive(path)
+        script_pubkey = p2wpkh(derived.get_public_key())
+        return DerivedBitcoinAddress(
+            address=script_pubkey.address(network),
+            script_pubkey=script_pubkey.data.hex(),
+            public_key=derived.get_public_key().to_string(),
             derivation_path=path,
         )
