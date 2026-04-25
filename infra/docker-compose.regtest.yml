@@ -302,37 +302,37 @@ services:
     networks:
       - platform
 
-    gateway:
-      build:
-        context: ./services/gateway
-        dockerfile: Dockerfile
-      container_name: tokenization-regtest-gateway
-      restart: unless-stopped
-      env_file:
-        - path: ./infra/.env.regtest
-          required: false
-      environment:
-        CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
-        CORS_ALLOWED_METHODS: ${CORS_ALLOWED_METHODS:-GET, POST, PUT, PATCH, DELETE, OPTIONS}
-        CORS_ALLOWED_HEADERS: ${CORS_ALLOWED_HEADERS:-Authorization, Content-Type, X-Requested-With, Accept, Origin, X-Request-ID, X-Correlation-ID, X-API-Key, X-2FA-Code, X-Idempotency-Key}
-        CORS_EXPOSE_HEADERS: ${CORS_EXPOSE_HEADERS:-X-Request-ID}
-        CORS_MAX_AGE: ${CORS_MAX_AGE:-86400}
-        CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
-      depends_on:
-        - auth
-        - wallet
-        - tokenization
-        - marketplace
-        - nostr
-        - admin
-      expose:
-        - "80"
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.scheme=http"
-        - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.port=80"
-      networks:
-        - platform
+  gateway:
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    container_name: tokenization-regtest-gateway
+    restart: unless-stopped
+    env_file:
+      - path: ./infra/.env.regtest
+        required: false
+    environment:
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      CORS_ALLOWED_METHODS: ${CORS_ALLOWED_METHODS:-GET, POST, PUT, PATCH, DELETE, OPTIONS}
+      CORS_ALLOWED_HEADERS: ${CORS_ALLOWED_HEADERS:-Authorization, Content-Type, X-Requested-With, Accept, Origin, X-Request-ID, X-Correlation-ID, X-API-Key, X-2FA-Code, X-Idempotency-Key}
+      CORS_EXPOSE_HEADERS: ${CORS_EXPOSE_HEADERS:-X-Request-ID}
+      CORS_MAX_AGE: ${CORS_MAX_AGE:-86400}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+    depends_on:
+      - auth
+      - wallet
+      - tokenization
+      - marketplace
+      - nostr
+      - admin
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.scheme=http"
+      - "traefik.http.services.tokenization-regtest-gateway.loadbalancer.server.port=80"
+    networks:
+      - platform
 
 volumes:
   regtest_postgres_data:
